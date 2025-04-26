@@ -1,0 +1,122 @@
+-- Create the Users table
+CREATE TABLE Users (
+    user_id SERIAL PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,    -- Consider storing hashed passwords
+    email VARCHAR(255) NOT NULL UNIQUE,
+    role VARCHAR(50) NOT NULL,         -- e.g., 'student', 'instructor'
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Create the Categories table
+CREATE TABLE Categories (
+    category_id SERIAL PRIMARY KEY,
+    category_name VARCHAR(100) NOT NULL UNIQUE,
+    description TEXT
+);
+
+-- Create the Courses table
+CREATE TABLE Courses (
+    course_id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    instructor_id INT NOT NULL,
+    category_id INT NOT NULL,
+    start_date DATE,
+    end_date DATE,
+    date_created TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (instructor_id) REFERENCES Users(user_id),
+    FOREIGN KEY (category_id) REFERENCES Categories(category_id)
+);
+
+-- Create the Enrollments table (Many-to-many: Users ↔ Courses)
+CREATE TABLE Enrollments (
+    user_id INT NOT NULL,
+    course_id INT NOT NULL,
+    enrollment_date DATE DEFAULT CURRENT_DATE,
+    PRIMARY KEY (user_id, course_id),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+-- Create the Modules table (if courses have modules)
+CREATE TABLE Modules (
+    module_id SERIAL PRIMARY KEY,
+    course_id INT NOT NULL,
+    module_title VARCHAR(255) NOT NULL,
+    module_order INT NOT NULL,
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+-- Create the Lessons table (each module may have several lessons)
+CREATE TABLE Lessons (
+    lesson_id SERIAL PRIMARY KEY,
+    module_id INT NOT NULL,
+    lesson_title VARCHAR(255) NOT NULL,
+    lesson_content TEXT,
+    lesson_order INT NOT NULL,
+    FOREIGN KEY (module_id) REFERENCES Modules(module_id)
+);
+
+-- Create the Content table (e.g., videos/documents linked to lessons)
+CREATE TABLE Content (
+    content_id SERIAL PRIMARY KEY,
+    lesson_id INT NOT NULL,
+    content_type VARCHAR(50) NOT NULL,   -- e.g., 'video', 'pdf'
+    file_url VARCHAR(500) NOT NULL,
+    duration INT,                        -- for video duration in seconds, if applicable
+    FOREIGN KEY (lesson_id) REFERENCES Lessons(lesson_id)
+);
+
+-- Create the Quizzes table
+CREATE TABLE Quizzes (
+    quiz_id SERIAL PRIMARY KEY,
+    lesson_id INT NOT NULL,
+    quiz_title VARCHAR(255) NOT NULL,
+    FOREIGN KEY (lesson_id) REFERENCES Lessons(lesson_id)
+);
+
+-- Create the Quiz_Results table (tracking user performance)
+CREATE TABLE Quiz_Results (
+    result_id SERIAL PRIMARY KEY,
+    quiz_id INT NOT NULL,
+    user_id INT NOT NULL,
+    score DECIMAL(5,2),
+    date_taken TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (quiz_id) REFERENCES Quizzes(quiz_id),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id)
+);
+
+-- Create the Payments table
+CREATE TABLE Payments (
+    payment_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    course_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    payment_method VARCHAR(50),
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+-- Create the Reviews table
+CREATE TABLE Reviews (
+    review_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    course_id INT NOT NULL,
+    rating INT CHECK (rating >= 1 AND rating <= 5),
+    review_text TEXT,
+    review_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);
+
+-- Create the Certificates (or Progress) table
+CREATE TABLE Certificates (
+    certificate_id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL,
+    course_id INT NOT NULL,
+    date_awarded DATE,
+    FOREIGN KEY (user_id) REFERENCES Users(user_id),
+    FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+);

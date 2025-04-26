@@ -1,0 +1,439 @@
+-- -- ---------------------------------------------
+-- -- COURSE MANAGEMENT SYSTEM (Udemy-like Platform)
+-- -- Oracle SQL + PL/SQL Full Setup
+-- -- ---------------------------------------------
+
+-- -- Drop tables if they exist (for re-execution)
+-- -- Disable foreign key checks temporarily
+-- SET FOREIGN_KEY_CHECKS = 0;
+
+-- DROP TABLE IF EXISTS Quiz_Results;
+-- DROP TABLE IF EXISTS Quizzes;
+-- DROP TABLE IF EXISTS Lesson_Attachments;
+-- DROP TABLE IF EXISTS Video;
+-- DROP TABLE IF EXISTS Modules;
+-- DROP TABLE IF EXISTS Certificates;
+-- DROP TABLE IF EXISTS Reviews;
+-- DROP TABLE IF EXISTS Payments;
+-- DROP TABLE IF EXISTS Enrollments;
+-- DROP TABLE IF EXISTS Courses;
+-- DROP TABLE IF EXISTS Categories;
+-- DROP TABLE IF EXISTS Users;
+
+-- -- Re-enable foreign key checks
+-- SET FOREIGN_KEY_CHECKS = 1;
+
+
+-- --1. USERS Table
+-- CREATE TABLE Users (
+--   user_id INT PRIMARY KEY AUTO_INCREMENT,
+--   userName VARCHAR(100),
+--   email VARCHAR(100) UNIQUE,
+--   password VARCHAR(100),
+--   role ENUM('student', 'instructor', 'admin'),
+--   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+-- );
+
+-- --2. CATEGORIES Table
+-- CREATE TABLE Categories (
+--   category_id INT PRIMARY KEY AUTO_INCREMENT,
+--   category_name VARCHAR(100) UNIQUE,
+--   description VARCHAR(255)
+-- );
+
+-- --3. COURSES Table
+-- CREATE TABLE Courses (
+--   course_id INT PRIMARY KEY AUTO_INCREMENT,
+--   title VARCHAR(100),
+--   description TEXT,
+--   price DECIMAL(10,2) CHECK (price >= 0),
+--   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   last_updated DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+--   category_id INT,
+--   instructor_id INT,
+--   FOREIGN KEY (category_id) REFERENCES Categories(category_id),
+--   FOREIGN KEY (instructor_id) REFERENCES Users(user_id)
+-- );
+
+-- --4. ENROLLMENTS Table
+-- CREATE TABLE Enrollments (
+--   user_id INT,
+--   course_id INT,
+--   enrolled_on DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   progress TINYINT DEFAULT 0 CHECK (progress BETWEEN 0 AND 100),
+--   PRIMARY KEY (user_id, course_id),
+--   FOREIGN KEY (user_id) REFERENCES Users(user_id),
+--   FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+-- );
+
+-- --5. PAYMENTS Table
+-- CREATE TABLE Payments (
+--   payment_id INT PRIMARY KEY AUTO_INCREMENT,
+--   user_id INT,
+--   course_id INT,
+--   payment_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   amount_paid DECIMAL(10, 2),
+--   -- Uncomment below if you want to include payment_status
+--   -- payment_status ENUM('Success', 'Pending', 'Failed'),
+--   FOREIGN KEY (user_id) REFERENCES Users(user_id),
+--   FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+-- );
+
+-- --6. REVIEWS Table
+-- CREATE TABLE Reviews (
+--   review_id INT PRIMARY KEY AUTO_INCREMENT,
+--   user_id INT,
+--   course_id INT,
+--   rating TINYINT CHECK (rating BETWEEN 1 AND 5),
+--   comment VARCHAR(1000),
+--   review_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   FOREIGN KEY (user_id) REFERENCES Users(user_id),
+--   FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+-- );
+
+
+-- --7. CERTIFICATES Table
+-- CREATE TABLE Certificates (
+--   certificate_id INT PRIMARY KEY AUTO_INCREMENT,
+--   user_id INT,
+--   course_id INT,
+--   issued_on DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   is_issued CHAR(1) DEFAULT 'N' CHECK (is_issued IN ('Y', 'N')),
+--   FOREIGN KEY (user_id) REFERENCES Users(user_id),
+--   FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+-- );
+
+-- --8. MODULES Table
+-- CREATE TABLE Modules (
+--   module_id INT PRIMARY KEY AUTO_INCREMENT,
+--   course_id INT,
+--   title VARCHAR(100),
+--   position INT,
+--   FOREIGN KEY (course_id) REFERENCES Courses(course_id)
+-- );
+
+-- --9. VIDEO Table
+CREATE TABLE Video (
+  video_id INT PRIMARY KEY AUTO_INCREMENT,
+  module_id INT NOT NULL,
+  title VARCHAR(100) NOT NULL,
+  position INT NOT NULL,
+  video_url VARCHAR(255) NOT NULL,
+  FOREIGN KEY (module_id) REFERENCES Modules(module_id)
+);
+
+
+
+-- --10. LESSON_ATTACHMENTS Table
+-- 
+CREATE TABLE Lesson_Attachments (
+  attachment_id INT PRIMARY KEY AUTO_INCREMENT,
+  module_id INT,
+  position INT NOT NULL,
+  file_url VARCHAR(255) NOT NULL,
+  uploaded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (module_id) REFERENCES Modules(module_id)
+);
+
+-- --11. QUIZZES Table
+-- CREATE TABLE Quizzes (
+--   quiz_id INT PRIMARY KEY AUTO_INCREMENT,
+--   module_id INT,
+--   question_text VARCHAR(1000),
+--   correct_answer VARCHAR(100),
+--   FOREIGN KEY (module_id) REFERENCES Modules(module_id)
+-- );
+
+-- --12. QUIZ_RESULTS Table
+-- CREATE TABLE Quiz_Results (
+--   result_id INT PRIMARY KEY AUTO_INCREMENT,
+--   quiz_id INT,
+--   user_id INT,
+--   score DECIMAL(5,2),
+--   attempt_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+--   FOREIGN KEY (quiz_id) REFERENCES Quizzes(quiz_id),
+--   FOREIGN KEY (user_id) REFERENCES Users(user_id)
+-- );
+
+
+//PLSQL
+CREATE TRIGGER trg_course_last_updated
+BEFORE UPDATE ON Courses
+FOR EACH ROW
+BEGIN
+  SET NEW.last_updated = CURRENT_TIMESTAMP;
+END
+
+
+-- CREATE PROCEDURE award_certificate (
+--   IN p_user_id INT,
+--   IN p_course_id INT
+-- )
+-- BEGIN
+--   DECLARE v_progress INT;
+--   DECLARE v_exists INT DEFAULT 0;
+
+--   -- Get progress
+--   SELECT progress INTO v_progress
+--   FROM Enrollments
+--   WHERE user_id = p_user_id AND course_id = p_course_id;
+
+--   -- Check if certificate already issued
+--   SELECT COUNT(*) INTO v_exists
+--   FROM Certificates
+--   WHERE user_id = p_user_id AND course_id = p_course_id AND is_issued = 'Y';
+
+--   -- If progress is 100 and no certificate exists, insert new certificate
+--   IF v_progress = 100 THEN
+--     IF v_exists = 0 THEN
+--       INSERT INTO Certificates (user_id, course_id, issued_on, is_issued)
+--       VALUES (p_user_id, p_course_id, CURRENT_TIMESTAMP, 'Y');
+--       SELECT CONCAT('Certificate awarded to user ID ', p_user_id) AS message;
+--     ELSE
+--       SELECT 'Certificate already issued.' AS message;
+--     END IF;
+--   ELSE
+--     SELECT CONCAT('Course not completed. Progress = ', v_progress) AS message;
+--  END IF;
+--END
+
+
+INSERT INTO Categories (category_name, description) VALUES
+('Programming', 'Courses related to software development and coding.'),
+('Design', 'Creative design, UI/UX, and graphic design topics.'),
+('Marketing', 'Digital marketing, branding, and sales strategies.'),
+('Data Science', 'Data analysis, machine learning, and AI.'),
+('Business', 'Entrepreneurship, finance, and business management.'),
+('Health & Wellness', 'Fitness, nutrition, and mental health topics.'),
+('Photography', 'Photography techniques and editing.'),
+('Music', 'Music production, theory, and instrument learning.'),
+('Language Learning', 'Learn new languages and linguistics.'),
+('Personal Development', 'Self-improvement, communication, and habits.');
+
+INSERT INTO Users (userName, email, password, role)
+VALUES 
+  ('Alice Student', 'alice.student@example.com', 'password123', 'student'),
+  ('Bob Instructor', 'bob.instructor@example.com', 'password123', 'instructor'),
+  ('Carol Admin', 'carol.admin@example.com', 'password123', 'admin'),
+  ('David Student', 'david.student@example.com', 'password123', 'student'),
+  ('Eve Instructor', 'eve.instructor@example.com', 'password123', 'instructor'),
+  ('Frank Admin', 'frank.admin@example.com', 'password123', 'admin'),
+  ('Grace Student', 'grace.student@example.com', 'password123', 'student'),
+  ('Hank Instructor', 'hank.instructor@example.com', 'password123', 'instructor'),
+  ('Ivy Admin', 'ivy.admin@example.com', 'password123', 'admin'),
+  ('Jake Student', 'jake.student@example.com', 'password123', 'student');
+
+
+ALTER TABLE Users AUTO_INCREMENT = 1;
+
+INSERT INTO Courses (title, description, price, category_id, instructor_id)
+VALUES 
+  ('Intro to Python', 'Learn Python programming from scratch.', 1499.99, 1, 1),
+  ('Web Development Bootcamp', 'HTML, CSS, JavaScript, and backend basics.', 1999.00, 2, 2),
+  ('Data Structures in C++', 'Master DSA using C++ for competitive coding.', 999.50, 1, 3),
+  ('UI/UX Design Fundamentals', 'Basics of design thinking and Figma.', 1799.00, 3, 4),
+  ('Machine Learning 101', 'Introduction to machine learning and algorithms.', 2499.99, 4, 1),
+  ('ReactJS Complete Guide', 'Build frontend apps with ReactJS.', 1399.99, 2, 2),
+  ('Database Management', 'SQL, normalization, and database design.', 1299.50, 5, 3),
+  ('Cybersecurity Basics', 'Learn security principles and best practices.', 1599.00, 6, 4),
+  ('Java for Beginners', 'Object-oriented programming with Java.', 1099.75, 1, 1),
+  ('Cloud Fundamentals', 'Get started with AWS and cloud infrastructure.', 2199.99, 7, 2);
+
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `get_courses_by_instructor` (
+  IN p_instructor_id INT
+)
+BEGIN
+  DECLARE v_count INT;
+
+  SELECT COUNT(*) INTO v_count
+  FROM Courses
+  WHERE instructor_id = p_instructor_id;
+
+  IF v_count = 0 THEN
+    SELECT CONCAT('No courses found for instructor ID ', p_instructor_id) AS message;
+  ELSE
+    SELECT 
+      course_id,
+      title,
+      description,
+      price,
+      created_at,
+      last_updated,
+      category_id
+    FROM Courses
+    WHERE instructor_id = p_instructor_id;
+  END IF;
+END
+
+
+
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `get_enrolled_courses_by_student` (
+  IN p_student_id INT
+)
+BEGIN
+  DECLARE v_count INT;
+
+  SELECT COUNT(*) INTO v_count
+  FROM Enrollments
+  WHERE user_id = p_student_id;
+
+  IF v_count = 0 THEN
+    SELECT CONCAT('No enrolled courses found for student ID ', p_student_id) AS message;
+  ELSE
+    SELECT 
+      c.course_id,
+      c.title,
+      c.description,
+      c.price,
+      c.created_at,
+      c.last_updated,
+      c.category_id,
+      e.enrolled_on,
+      e.progress
+    FROM Enrollments e
+    JOIN Courses c ON e.course_id = c.course_id
+    WHERE e.user_id = p_student_id;
+  END IF;
+END
+
+
+CREATE PROCEDURE enroll_in_course_with_payment(
+    IN p_user_id INT,
+    IN p_course_id INT,
+    IN p_payment_amount DECIMAL(10,2)
+)
+BEGIN
+    DECLARE v_price DECIMAL(10,2);
+    DECLARE v_user_exists INT;
+    DECLARE v_course_exists INT;
+    DECLARE v_enrolled INT;
+
+    main_block: BEGIN
+
+        -- Check if user exists
+        SELECT COUNT(*) INTO v_user_exists FROM Users WHERE user_id = p_user_id;
+        IF v_user_exists = 0 THEN
+            SELECT 'User does not exist' AS message;
+            LEAVE main_block;
+        END IF;
+
+        -- Check if course exists
+        SELECT COUNT(*) INTO v_course_exists FROM Courses WHERE course_id = p_course_id;
+        IF v_course_exists = 0 THEN
+            SELECT 'Course does not exist' AS message;
+            LEAVE main_block;
+        END IF;
+
+        -- Get course price
+        SELECT price INTO v_price FROM Courses WHERE course_id = p_course_id;
+
+        -- Check if already enrolled
+        SELECT COUNT(*) INTO v_enrolled FROM Enrollments WHERE user_id = p_user_id AND course_id = p_course_id;
+        IF v_enrolled > 0 THEN
+            SELECT 'User already enrolled in this course' AS message;
+            LEAVE main_block;
+        END IF;
+
+        -- Check if payment is correct
+        IF p_payment_amount != v_price THEN
+            SELECT 'Payment amount is not equal to course price' AS message;
+            LEAVE main_block;
+        END IF;
+
+        -- Insert into Enrollments
+        INSERT INTO Enrollments (user_id, course_id) VALUES (p_user_id, p_course_id);
+
+        -- Insert into Payments
+        INSERT INTO Payments (user_id, course_id, amount_paid) VALUES (p_user_id, p_course_id, p_payment_amount);
+
+        SELECT 'Enrolled in course successfully' AS message;
+
+    END main_block;
+END;
+
+DELIMITER $$
+
+CREATE PROCEDURE write_review (
+    IN p_user_id INT,
+    IN p_course_id INT,
+    IN p_rating TINYINT,
+    IN p_comment VARCHAR(1000)
+)
+BEGIN
+    DECLARE v_enrolled INT;
+    DECLARE v_user_exists INT;
+    DECLARE v_course_exists INT;
+
+    -- Check if the user exists
+    SELECT COUNT(*) INTO v_user_exists
+    FROM Users
+    WHERE user_id = p_user_id;
+
+    -- Check if the course exists
+    SELECT COUNT(*) INTO v_course_exists
+    FROM Courses
+    WHERE course_id = p_course_id;
+
+    -- If user or course doesn't exist, raise an error
+    IF v_user_exists = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User does not exist. Review not submitted.';
+    ELSEIF v_course_exists = 0 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'Course does not exist. Review not submitted.';
+    ELSE
+        -- Check if the user is enrolled in the course
+        SELECT COUNT(*) INTO v_enrolled
+        FROM Enrollments
+        WHERE user_id = p_user_id AND course_id = p_course_id;
+
+        -- If user is enrolled, allow them to write the review
+        IF v_enrolled > 0 THEN
+            -- Insert the review into the Reviews table
+            INSERT INTO Reviews (user_id, course_id, rating, comment, review_date)
+            VALUES (p_user_id, p_course_id, p_rating, p_comment, CURRENT_TIMESTAMP);
+        ELSE
+            -- If user is not enrolled, raise an error
+            SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'User is not enrolled in this course. Review not submitted.';
+        END IF;
+    END IF;
+
+END$$
+
+DELIMITER ;
+
+
+CREATE TRIGGER trg_review_rating_check
+BEFORE INSERT ON Reviews
+FOR EACH ROW
+BEGIN
+    IF NEW.rating < 1 OR NEW.rating > 5 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rating must be between 1 and 5.';
+    END IF;
+END
+
+CREATE TRIGGER trg_review_rating_check_update
+BEFORE UPDATE ON Reviews
+FOR EACH ROW
+BEGIN
+    IF NEW.rating < 1 OR NEW.rating > 5 THEN
+        SIGNAL SQLSTATE '45000'
+        SET MESSAGE_TEXT = 'Rating must be between 1 and 5.';
+    END IF;
+END
+
+
+CREATE FUNCTION get_course_rating(p_course_id INT)
+RETURNS DECIMAL(3,2)
+DETERMINISTIC
+BEGIN
+    DECLARE v_avg_rating DECIMAL(3,2);
+
+    SELECT AVG(rating) INTO v_avg_rating
+    FROM Reviews
+    WHERE course_id = p_course_id;
+
+    RETURN v_avg_rating;
+END
+

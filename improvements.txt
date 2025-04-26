@@ -1,0 +1,3 @@
+1. improve get courses data by id controller to show all the details of the course
+2. phele to ek bss saare courses fetch hojaye ki thumbnail nad all, baaki specific courses pe jane me modules, videos, quizes vgera sab fetch hojaye
+3. last updated dekhna hi courses me
