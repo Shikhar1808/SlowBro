@@ -437,3 +437,85 @@ BEGIN
     RETURN v_avg_rating;
 END
 
+DROP PROCEDURE get_courses_by_instructor;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `get_courses_by_instructor`(
+  IN p_instructor_id INT
+)
+BEGIN
+  DECLARE v_count INT;
+
+  SELECT COUNT(*) INTO v_count
+  FROM Courses
+  WHERE instructor_id = p_instructor_id;
+
+  IF v_count = 0 THEN
+    SELECT CONCAT('No courses found for instructor ID ', p_instructor_id) AS message;
+  ELSE
+    SELECT 
+      course_id,
+      title,
+      description,
+      price,
+      created_at,
+      last_updated,
+      category_id
+    FROM Courses
+    WHERE instructor_id = p_instructor_id;
+  END IF;
+END
+
+DROP PROCEDURE get_module_content;
+CREATE DEFINER=`root`@`localhost` PROCEDURE `get_module_content`(IN p_module_id INT)
+BEGIN
+  -- Declare variables first
+  DECLARE v_module_exists INT;
+
+  -- Declare handler after variables
+  DECLARE EXIT HANDLER FOR SQLEXCEPTION
+  BEGIN
+    SELECT 'An unexpected error occurred while retrieving module content.' AS error_message;
+    ROLLBACK;
+  END;
+
+  -- Start a labeled block
+  main_block: BEGIN
+
+    -- Check if the module exists
+    SELECT COUNT(*) INTO v_module_exists FROM Modules WHERE module_id = p_module_id;
+
+    IF v_module_exists = 0 THEN
+      SELECT 'Module not found' AS message;
+      LEAVE main_block;
+    END IF;
+
+    -- If module exists, return data
+
+    -- 1. Quizzes
+    SELECT 
+      quiz_id, 
+      question_text, 
+      correct_answer 
+    FROM Quizzes 
+    WHERE module_id = p_module_id;
+
+    -- 2. Videos
+    SELECT 
+      video_id, 
+      title, 
+      position, 
+      video_url 
+    FROM Video 
+    WHERE module_id = p_module_id;
+
+    -- 3. Lesson Attachments
+    SELECT 
+      attachment_id, 
+      position, 
+      file_url, 
+      uploaded_at 
+    FROM Lesson_Attachments 
+    WHERE module_id = p_module_id;
+
+  END main_block;
+
+END
